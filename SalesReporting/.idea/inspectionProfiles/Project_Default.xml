@@ -1,0 +1,89 @@
+<component name="InspectionProjectProfileManager">
+  <profile version="1.0">
+    <option name="myName" value="Project Default" />
+    <inspection_tool class="PyPackageRequirementsInspection" enabled="true" level="WARNING" enabled_by_default="true">
+      <option name="ignoredPackages">
+        <list>
+          <option value="pandas" />
+          <option value="aiohappyeyeballs" />
+          <option value="aiohttp" />
+          <option value="aiosignal" />
+          <option value="annotated-doc" />
+          <option value="annotated-types" />
+          <option value="anyio" />
+          <option value="attrs" />
+          <option value="backoff" />
+          <option value="certifi" />
+          <option value="charset-normalizer" />
+          <option value="click" />
+          <option value="colorama" />
+          <option value="deepeval" />
+          <option value="distro" />
+          <option value="et_xmlfile" />
+          <option value="execnet" />
+          <option value="frozenlist" />
+          <option value="greenlet" />
+          <option value="grpcio" />
+          <option value="h11" />
+          <option value="httpcore2" />
+          <option value="httpx2" />
+          <option value="idna" />
+          <option value="iniconfig" />
+          <option value="Jinja2" />
+          <option value="jiter" />
+          <option value="markdown-it-py" />
+          <option value="MarkupSafe" />
+          <option value="mdurl" />
+          <option value="multidict" />
+          <option value="nest-asyncio" />
+          <option value="numpy" />
+          <option value="openai" />
+          <option value="openpyxl" />
+          <option value="opentelemetry-api" />
+          <option value="opentelemetry-sdk" />
+          <option value="opentelemetry-semantic-conventions" />
+          <option value="packaging" />
+          <option value="pillow" />
+          <option value="playwright" />
+          <option value="pluggy" />
+          <option value="portalocker" />
+          <option value="posthog" />
+          <option value="prompt_toolkit" />
+          <option value="propcache" />
+          <option value="pydantic" />
+          <option value="pydantic-settings" />
+          <option value="pydantic_core" />
+          <option value="pyee" />
+          <option value="pyfiglet" />
+          <option value="Pygments" />
+          <option value="pytest" />
+          <option value="pytest-asyncio" />
+          <option value="pytest-repeat" />
+          <option value="pytest-rerunfailures" />
+          <option value="pytest-xdist" />
+          <option value="python-dateutil" />
+          <option value="python-dotenv" />
+          <option value="questionary" />
+          <option value="requests" />
+          <option value="rich" />
+          <option value="setuptools" />
+          <option value="shellingham" />
+          <option value="six" />
+          <option value="sniffio" />
+          <option value="tabulate" />
+          <option value="tenacity" />
+          <option value="tqdm" />
+          <option value="truststore" />
+          <option value="typer" />
+          <option value="typing-inspection" />
+          <option value="typing_extensions" />
+          <option value="tzdata" />
+          <option value="urllib3" />
+          <option value="wcwidth" />
+          <option value="wheel" />
+          <option value="yarl" />
+        </list>
+      </option>
+    </inspection_tool>
+  </profile>
+</component>

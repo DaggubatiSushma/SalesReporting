@@ -1,0 +1,1380 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sales Reporting Dashboard</title>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+<div id="loginScreen" class="login-screen">
+  <div class="login-card">
+    <div class="login-header">
+      <div class="brand-icon">🔐</div>
+      <div>
+        <h1>Sales Reporting Login</h1>
+        <p>Enter master credentials to access the dashboard</p>
+      </div>
+    </div>
+    <form id="loginForm" class="login-form">
+      <div class="form-group">
+        <label for="loginUsername">Username</label>
+        <input id="loginUsername" class="form-control" type="text" autocomplete="username" required>
+      </div>
+      <div class="form-group">
+        <label for="loginPassword">Password</label>
+        <input id="loginPassword" class="form-control" type="password" autocomplete="current-password" required>
+      </div>
+      <div id="loginError" class="login-error hidden"></div>
+      <button id="loginBtn" class="btn btn-primary btn-lg" type="submit">Sign In</button>
+    </form>
+  </div>
+</div>
+
+<div id="appShell" class="app hidden">
+
+  <!-- ===== HEADER ===== -->
+  <header class="app-header">
+    <div class="header-brand">
+      <div class="brand-icon">📊</div>
+      <div>
+        <h1>Sales Reporting Dashboard</h1>
+        <p>Data Entry · LCBO · Credit Card Reconciliation · Reports · Export</p>
+      </div>
+    </div>
+
+    <div class="header-actions">
+      <div class="store-selector">
+        <span class="store-selector-label">🏪 Store:</span>
+        <select id="storeSelect"></select>
+      </div>
+      <button id="logoutBtn" class="btn btn-ghost btn-sm header-logout-btn" type="button">Logout</button>
+    </div>
+  </header>
+
+  <!-- ===== MAIN NAV TABS ===== -->
+  <nav class="main-nav">
+    <button class="main-tab-btn active" data-panel="panel-entry">
+      <span class="tab-icon">🧾</span> Data Entry
+    </button>
+    <button class="main-tab-btn" data-panel="panel-lcbo">
+      <span class="tab-icon">🍷</span> LCBO
+    </button>
+    <button class="main-tab-btn" data-panel="panel-cc-reconciliation">
+      <span class="tab-icon">💳</span> Credit Card Reconciliation
+    </button>
+    <button class="main-tab-btn" data-panel="panel-reports">
+      <span class="tab-icon">📈</span> Reports
+    </button>
+  </nav>
+
+  <!-- ===== MAIN CONTENT ===== -->
+  <main class="main-content">
+    <div class="startup-error hidden" id="startupError">
+      <strong>Application startup failed.</strong>
+      <span id="startupErrorText">Please start the backend server with start-server.ps1 or start-server.bat.</span>
+    </div>
+
+    <div id="panel-entry" class="main-tab-panel active">
+      <div class="card">
+        <div class="me-controls">
+          <label>Month:</label>
+          <select id="entryFilterMonth" class="form-control select-sm"></select>
+          <label>Year:</label>
+          <select id="entryFilterYear" class="form-control" style="width:100px"></select>
+        </div>
+      </div>
+
+      <div class="entry-sub-tabs">
+        <button class="entry-sub-tab active" data-panel="entry-daily">💰 Daily Entry</button>
+        <button class="entry-sub-tab" data-panel="entry-cash-bank">💸 Cash + Bank Payments</button>
+        <button class="entry-sub-tab" data-panel="entry-expense-group">📋 Expenses + Salaries + Other Income</button>
+      </div>
+
+      <div id="entry-daily" class="entry-panel active">
+        <div class="card">
+          <div class="date-nav">
+            <button class="btn btn-ghost btn-sm" id="prevDateBtn">◀ Prev</button>
+            <div class="date-nav-center">
+              <div class="form-group" style="flex-direction:row;align-items:center;gap:8px;margin:0">
+                <label style="margin:0;white-space:nowrap">Date:</label>
+                <input type="date" id="salesDate" class="form-control" style="width:180px">
+              </div>
+              <div class="save-status empty" id="seSaveStatus">No record</div>
+            </div>
+            <button class="btn btn-ghost btn-sm" id="nextDateBtn">Next ▶</button>
+          </div>
+        </div>
+        <div id="salesDataAlert" class="inline-hint inline-hint-warn hidden"></div>
+
+        <div class="card section-card">
+          <div class="card-header hdr-sales">
+            <h2>💵 Sales Section</h2>
+          </div>
+          <div class="card-body">
+            <div class="form-grid form-grid-4">
+              <div class="form-group">
+                <label>Total</label>
+                <input type="number" id="se_total" class="form-control" step="0.01" placeholder="0.00" readonly>
+              </div>
+              <div class="form-group">
+                <label>Sales</label>
+                <input type="number" id="se_sales" class="form-control" step="0.01" placeholder="0.00">
+              </div>
+              <div class="form-group">
+                <label>HST</label>
+                <input type="number" id="se_hst" class="form-control" step="0.01" placeholder="0.00">
+              </div>
+              <div class="form-group">
+                <label>Online</label>
+                <input type="number" id="se_online" class="form-control" step="0.01" placeholder="0.00">
+              </div>
+              <div class="form-group">
+                <label>Instant</label>
+                <input type="number" id="se_instant" class="form-control" step="0.01" placeholder="0.00">
+              </div>
+              <div class="form-group">
+                <label>CC</label>
+                <input type="number" id="se_cc" class="form-control" step="0.01" placeholder="0.00">
+              </div>
+              <div class="form-group">
+                <label>GC</label>
+                <input type="number" id="se_gc" class="form-control" step="0.01" placeholder="0.00">
+              </div>
+              <div class="form-group">
+                <label>Non-Add</label>
+                <input type="number" id="se_nonAdd" class="form-control" step="0.01" placeholder="0.00">
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card section-card">
+          <div class="card-header hdr-income">
+            <h2>💳 Income Section</h2>
+          </div>
+          <div class="card-body">
+            <div class="form-grid form-grid-4">
+              <div class="form-group">
+                <label>MasterCard (MC)</label>
+                <input type="number" id="inc_mc" class="form-control" step="0.01" placeholder="0.00">
+              </div>
+              <div class="form-group">
+                <label>Visa</label>
+                <input type="number" id="inc_visa" class="form-control" step="0.01" placeholder="0.00">
+              </div>
+              <div class="form-group">
+                <label>Debit</label>
+                <input type="number" id="inc_debit" class="form-control" step="0.01" placeholder="0.00">
+              </div>
+              <div class="form-group">
+                <label>Cash</label>
+                <input type="number" id="inc_cash" class="form-control" step="0.01" placeholder="0.00">
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="action-row">
+          <button class="btn btn-primary btn-lg" id="saveSalesBtn">💾 Save Daily Record</button>
+        </div>
+
+        <div class="card section-card">
+          <div class="card-header hdr-lottery">
+            <h2>🎰 Lottery Records</h2>
+            <button class="btn btn-success btn-sm" id="addLotteryBtn">＋ Add Lottery Record</button>
+          </div>
+          <div class="card-body">
+            <p class="section-lead">Lottery Records are entry-only in this section.</p>
+          </div>
+        </div>
+      </div><!-- /entry-daily -->
+
+      <div id="entry-cash-bank" class="entry-panel">
+        <div class="two-col">
+          <div class="card section-card">
+            <div class="card-header hdr-cash">
+              <h2>💸 Cash Payments</h2>
+              <button class="btn btn-success btn-sm" id="addCashBtn">＋ Add</button>
+            </div>
+            <div class="card-body" style="padding:0">
+              <div class="table-responsive table-fit">
+                <table class="data-table entry-wrap-table">
+                  <thead>
+                    <tr>
+                      <th>Date</th><th>Vendor Name</th>
+                      <th class="text-right">Amount</th>
+                      <th class="text-right">HST</th>
+                      <th class="text-right">Total</th>
+                      <th class="text-center">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody id="cashPayTbody"></tbody>
+                  <tfoot>
+                    <tr>
+                      <td colspan="2" style="font-weight:700">Totals</td>
+                      <td class="text-right" id="cashFoot_amt"><strong>0</strong></td>
+                      <td class="text-right" id="cashFoot_hst"><strong>0</strong></td>
+                      <td class="text-right" id="cashFoot_total"><strong>0</strong></td>
+                      <td></td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <div class="card section-card">
+            <div class="card-header hdr-bank">
+              <h2>🏦 Bank Payments</h2>
+              <button class="btn btn-success btn-sm" id="addBankBtn">＋ Add</button>
+            </div>
+            <div class="card-body" style="padding:0">
+              <div class="table-responsive table-fit">
+                <table class="data-table entry-wrap-table">
+                  <thead>
+                    <tr>
+                      <th>Date</th><th>Vendor Name</th>
+                      <th class="text-right">Amount</th>
+                      <th class="text-right">HST</th>
+                      <th>CHQ #</th>
+                      <th class="text-right">Total</th>
+                      <th class="text-center">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody id="bankPayTbody"></tbody>
+                  <tfoot>
+                    <tr>
+                      <td colspan="2" style="font-weight:700">Totals</td>
+                      <td class="text-right" id="bankFoot_amt"><strong>0</strong></td>
+                      <td class="text-right" id="bankFoot_hst"><strong>0</strong></td>
+                      <td></td>
+                      <td class="text-right" id="bankFoot_total"><strong>0</strong></td>
+                      <td></td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div><!-- /entry-cash-bank -->
+
+      <div id="entry-expense-group" class="entry-panel">
+        <div class="two-col">
+          <div class="card section-card">
+            <div class="card-header hdr-expense">
+              <h2>📋 Expenses</h2>
+              <button class="btn btn-success btn-sm" id="addExpBtn">＋ Add</button>
+            </div>
+            <div class="card-body" style="padding:0">
+              <div class="table-responsive table-fit">
+                <table class="data-table entry-wrap-table">
+                  <thead>
+                    <tr>
+                      <th>Date</th><th>Vendor Name</th>
+                      <th class="text-right">Amount</th>
+                      <th class="text-right">HST</th>
+                      <th class="text-right">Total</th>
+                      <th class="text-center">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody id="expTbody"></tbody>
+                  <tfoot>
+                    <tr>
+                      <td colspan="2" style="font-weight:700">Totals</td>
+                      <td class="text-right" id="expFoot_amt"><strong>0</strong></td>
+                      <td class="text-right" id="expFoot_hst"><strong>0</strong></td>
+                      <td class="text-right" id="expFoot_total"><strong>0</strong></td>
+                      <td></td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <div class="stack-col">
+            <div class="card section-card">
+              <div class="card-header hdr-salary">
+                <h2>👥 Salaries</h2>
+                <button class="btn btn-success btn-sm" id="addSalBtn">＋ Add</button>
+              </div>
+              <div class="card-body" style="padding:0">
+                <div class="table-responsive table-fit">
+                  <table class="data-table entry-wrap-table">
+                    <thead>
+                      <tr>
+                        <th>Date</th><th>Employee</th>
+                        <th class="text-right">Amount</th>
+                        <th class="text-center">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody id="salTbody"></tbody>
+                    <tfoot>
+                      <tr>
+                        <td colspan="2" style="font-weight:700">Total</td>
+                        <td class="text-right" id="salFoot_amt"><strong>0</strong></td>
+                        <td></td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+            <div class="card section-card">
+              <div class="card-header hdr-other">
+                <h2>💹 Other Income</h2>
+                <button class="btn btn-success btn-sm" id="addOtherBtn">＋ Add</button>
+              </div>
+              <div class="card-body" style="padding:0">
+                <div class="table-responsive">
+                  <table class="data-table">
+                    <thead>
+                      <tr>
+                        <th>Date</th><th>Vendor / Source</th>
+                        <th class="text-right">Amount</th>
+                        <th class="text-center">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody id="otherIncTbody"></tbody>
+                    <tfoot>
+                      <tr>
+                        <td colspan="2" style="font-weight:700">Total</td>
+                        <td class="text-right" id="otherFoot_amt"><strong>0</strong></td>
+                        <td></td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div><!-- /entry-expense-group -->
+    </div><!-- /panel-entry -->
+
+
+    <div id="panel-lcbo" class="main-tab-panel">
+      <div class="two-col lcbo-entry-grid">
+        <div class="card section-card">
+          <div class="card-header hdr-lcbo">
+            <h2>🍷 Add LCBO Record</h2>
+          </div>
+          <div class="card-body">
+            <div class="form-grid form-grid-4">
+              <div class="form-group">
+                <label for="lcboFormStore">Store Name</label>
+                <select id="lcboFormStore" class="form-control"></select>
+              </div>
+              <div class="form-group">
+                <label for="lcboFormDate">Date</label>
+                <input type="date" id="lcboFormDate" class="form-control">
+              </div>
+              <div class="form-group">
+                <label for="lcboFormVendor">Vendor</label>
+                <input type="text" id="lcboFormVendor" class="form-control" value="LCBO" readonly>
+              </div>
+              <div class="form-group">
+                <label for="lcboFormInvoice">Invoice #</label>
+                <input type="text" id="lcboFormInvoice" class="form-control" placeholder="INV-####">
+              </div>
+              <div class="form-group">
+                <label for="lcboFormCreditEnding">Credit Ending</label>
+                <input type="text" id="lcboFormCreditEnding" class="form-control" placeholder="Last digits">
+              </div>
+              <div class="form-group">
+                <label for="lcboFormAmount">Amount</label>
+                <input type="number" id="lcboFormAmount" class="form-control" step="0.01" min="0.01" placeholder="0.00">
+              </div>
+              <div class="form-group">
+                <label for="lcboFormHst">HST</label>
+                <input type="number" id="lcboFormHst" class="form-control" step="0.01" min="0" value="0">
+              </div>
+              <div class="form-group">
+                <label for="lcboFormTotal">Total (Amount + HST)</label>
+                <input type="number" id="lcboFormTotal" class="form-control" step="0.01" readonly>
+              </div>
+            </div>
+            <div class="action-row lcbo-inline-actions">
+              <button id="lcboFormResetBtn" class="btn btn-ghost">Reset</button>
+              <button id="lcboFormSaveBtn" class="btn btn-primary">💾 Save LCBO Record</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="card section-card">
+          <div class="card-header hdr-cc">
+            <h2>💳 Paid to Credit Cards</h2>
+          </div>
+          <div class="card-body">
+            <div class="form-grid form-grid-3">
+              <div class="form-group">
+                <label for="lcboCcStore">Store Name</label>
+                <select id="lcboCcStore" class="form-control"></select>
+              </div>
+              <div class="form-group">
+                <label for="lcboCcDate">Date</label>
+                <input type="date" id="lcboCcDate" class="form-control">
+              </div>
+              <div class="form-group col-span-2">
+                <label for="lcboCcPurpose">Purpose</label>
+                <input type="text" id="lcboCcPurpose" class="form-control" placeholder="Purpose">
+              </div>
+              <div class="form-group">
+                <label for="lcboCcAmount">Amount</label>
+                <input type="number" id="lcboCcAmount" class="form-control" step="0.01" min="0.01" placeholder="0.00">
+              </div>
+            </div>
+            <div class="action-row lcbo-inline-actions">
+              <button id="lcboCcResetBtn" class="btn btn-ghost">Reset</button>
+              <button id="lcboCcSaveBtn" class="btn btn-primary">💾 Save Payment</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card section-card">
+        <div class="card-header hdr-report">
+          <h2 id="lcboQuarterlyTitle">📊 Quarterly Summary</h2>
+        </div>
+        <div class="card-body" style="padding:0">
+          <div class="table-responsive">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Quarter</th>
+                  <th class="text-right">LCBO Total</th>
+                  <th class="text-right">Credit Card Payments</th>
+                  <th class="text-right">Difference / Balance</th>
+                </tr>
+              </thead>
+              <tbody id="lcboQuarterlyTbody"></tbody>
+              <tfoot>
+                <tr>
+                  <td style="font-weight:700">Year Total</td>
+                  <td class="text-right" id="lcboQuarterlyTotalLcbo"><strong>0</strong></td>
+                  <td class="text-right" id="lcboQuarterlyTotalCc"><strong>0</strong></td>
+                  <td class="text-right" id="lcboQuarterlyTotalDiff"><strong>0</strong></td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="card section-card">
+        <div class="card-header hdr-report">
+          <h2>🏬 Store + Month Selection</h2>
+          <div class="form-group" style="flex-direction:row;align-items:center;gap:8px;margin:0">
+            <label style="margin:0;white-space:nowrap">Year:</label>
+            <select id="lcboYear" class="form-control year-select"></select>
+          </div>
+        </div>
+        <div class="card-body">
+          <div id="lcboStoreOverviewRow" class="lcbo-store-horizontal"></div>
+          <div class="lcbo-store-overview-meta">
+            <span><strong>Combined LCBO Total:</strong> <span id="lcboStoreOverviewTotal">0</span></span>
+            <span class="month-label" id="lcboSelectedPeriod"></span>
+          </div>
+          <div class="lcbo-month-nav">
+            <div id="lcboMonthCards" class="lcbo-month-grid"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="two-col">
+        <div class="card section-card">
+          <div class="card-header hdr-lcbo">
+            <h2>🍷 LCBO Records</h2>
+          </div>
+          <div class="card-body" style="padding:0">
+            <div class="table-responsive table-region table-fit">
+              <table class="data-table entry-wrap-table">
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>Vendor</th>
+                    <th>Invoice #</th>
+                    <th>Credit Ending</th>
+                    <th class="text-right">Amount</th>
+                    <th class="text-right">HST</th>
+                    <th class="text-right">Total</th>
+                    <th class="text-center">Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="lcboModuleRecordsTbody"></tbody>
+                <tfoot>
+                  <tr>
+                    <td colspan="4" style="font-weight:700">Monthly Total</td>
+                    <td class="text-right" id="lcboModuleFootAmount"><strong>0</strong></td>
+                    <td class="text-right" id="lcboModuleFootHst"><strong>0</strong></td>
+                    <td class="text-right" id="lcboModuleFootTotal"><strong>0</strong></td>
+                    <td></td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+            <div class="lcbo-month-actions">
+              <div class="lcbo-month-meta">
+                <span id="lcboMonthStatusBadge" class="lcbo-status-badge pending">Pending Validation</span>
+                <span id="lcboMonthLcboTotalText">LCBO Monthly Total: 0</span>
+                <span id="lcboMonthDifferenceText">Difference / Balance: 0</span>
+              </div>
+              <div class="lcbo-action-btns">
+                <button id="lcboPostBtn" class="btn btn-success btn-sm">Post LCBO Payment to Cash/Debit</button>
+                <button id="lcboAdjustBtn" class="btn btn-danger btn-sm">Make Adjustment</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card section-card">
+          <div class="card-header hdr-cc">
+            <h2>💳 Paid to Credit Cards</h2>
+          </div>
+          <div class="card-body" style="padding:0">
+            <div class="table-responsive table-region table-fit">
+              <table class="data-table entry-wrap-table">
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>Purpose</th>
+                    <th class="text-right">Amount</th>
+                    <th class="text-center">Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="lcboModulePaymentsTbody"></tbody>
+                <tfoot>
+                  <tr>
+                    <td colspan="2" style="font-weight:700">Total Amount Paid</td>
+                    <td class="text-right" id="lcboModulePaymentsFootAmount"><strong>0</strong></td>
+                    <td></td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+            <div class="lcbo-month-actions">
+              <div class="lcbo-month-meta">
+                <span id="lcboPendingAmountText">Pending Amount (LCBO - Credit Cards): 0</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div><!-- /panel-lcbo -->
+
+    <div id="panel-cc-reconciliation" class="main-tab-panel">
+      <div class="card section-card">
+        <div class="card-header hdr-lcbo">
+          <h2>💳 Credit Card Reconciliation</h2>
+          <button class="btn btn-success btn-sm" id="ccrAddBtn">＋ Add Transaction</button>
+        </div>
+        <div class="card-body">
+          <div class="form-grid form-grid-4">
+            <div class="form-group">
+              <label for="ccrDate">Transaction Date</label>
+              <input type="date" id="ccrDate" class="form-control">
+            </div>
+            <div class="form-group">
+              <label for="ccrCard">Credit Card</label>
+              <input type="text" id="ccrCard" class="form-control" placeholder="e.g. RBC Visa">
+            </div>
+            <div class="form-group">
+              <label for="ccrAmount">Transaction Amount</label>
+              <input type="number" id="ccrAmount" class="form-control" step="0.01" min="0.01" placeholder="0.00">
+            </div>
+            <div class="form-group">
+              <label for="ccrHst">HST</label>
+              <input type="number" id="ccrHst" class="form-control" step="0.01" min="0" placeholder="0">
+            </div>
+            <div class="form-group">
+              <label for="ccrDedicatedStore">Dedicated Store (Optional)</label>
+              <select id="ccrDedicatedStore" class="form-control"></select>
+            </div>
+            <div class="form-group col-span-2">
+              <label for="ccrMerchant">Merchant / Supplier</label>
+              <input type="text" id="ccrMerchant" class="form-control" placeholder="Supplier or merchant">
+            </div>
+            <div class="form-group col-span-2">
+              <label for="ccrDescription">Description / Notes (Optional)</label>
+              <input type="text" id="ccrDescription" class="form-control" placeholder="Optional notes">
+            </div>
+          </div>
+          <div class="action-row">
+            <button id="ccrSaveBtn" class="btn btn-primary">💾 Save Credit Card Transaction</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="card section-card">
+        <div class="card-header hdr-report">
+          <h2>🏬 Store Allocations</h2>
+        </div>
+        <div class="card-body">
+          <p class="section-lead">Click a store button to open dedicated transactions for that store.</p>
+          <div id="ccrStoreAllocations" class="ccr-store-grid"></div>
+        </div>
+      </div>
+
+      <div class="card section-card">
+        <div class="card-header hdr-report">
+          <h2 id="ccrBoardTitle">PENDING CREDIT CARD TRANSACTIONS</h2>
+        </div>
+        <div class="card-body" style="padding:0">
+          <div class="table-responsive">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Card</th>
+                  <th>Merchant</th>
+                  <th>Description</th>
+                  <th class="text-right">Amount</th>
+                  <th class="text-right">HST</th>
+                  <th>Dedicated Store</th>
+                  <th>Status</th>
+                  <th class="text-center">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="ccrBoardTbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div><!-- /panel-cc-reconciliation -->
+
+    <!-- =========================================================
+         TAB 4: REPORTS
+         ========================================================= -->
+    <div id="panel-reports" class="main-tab-panel">
+
+      <!-- Sub-tab buttons -->
+      <div class="report-sub-tabs">
+        <button class="report-sub-tab active" data-panel="rp-monthly">📊 Monthly Report</button>
+        <button class="report-sub-tab"        data-panel="rp-annual"> 📅 Annual Report</button>
+        <button class="report-sub-tab"        data-panel="rp-dashboard">🏬 Store Dashboard</button>
+        <button class="report-sub-tab"        data-panel="rp-export">📤 Excel Export</button>
+      </div>
+
+      <!-- ---- Monthly Report ---- -->
+      <div id="rp-monthly" class="report-panel active">
+        <div class="card">
+          <div class="month-selector-card">
+            <div class="month-pills" id="monthPills"></div>
+            <select id="reportYear" class="form-control year-select"></select>
+          </div>
+        </div>
+
+        <div class="card section-card">
+          <div class="card-header hdr-balance">
+            <h2>⚖️ Balance Sheet</h2>
+            <span class="month-label" id="reportMonthLabel"></span>
+          </div>
+          <div class="card-body">
+            <div class="balance-grid">
+              <div class="balance-col">
+                <h3>Sales Summary</h3>
+                <table class="balance-table">
+                  <tr><td>POS (Sales)</td><td id="bs_pos">0</td></tr>
+                  <tr><td>HST</td><td id="bs_hst">0</td></tr>
+                  <tr><td>TotalSales (POS + HST)</td><td id="bs_posPlusHst">0</td></tr>
+                  <tr><td>Online</td><td id="bs_online">0</td></tr>
+                  <tr><td>Instant</td><td id="bs_instant">0</td></tr>
+                  <tr><td>CC</td><td id="bs_cc">0</td></tr>
+                  <tr><td>GC</td><td id="bs_gc">0</td></tr>
+                  <tr><td>Non-Add (Display Only)</td><td id="bs_nonAdd">0</td></tr>
+                </table>
+              </div>
+
+              <div class="balance-divider"></div>
+
+              <div class="balance-col">
+                <h3>Financial Summary</h3>
+                <table class="balance-table">
+                  <tr><td>Total Sales (A)</td><td id="bs_totalSales">0</td></tr>
+                  <tr><td>Total Cash Payments + Salaries (B)</td><td id="bs_totalCashSalary">0</td></tr>
+                  <tr class="highlight-row"><td>Net (A - B) = C</td><td id="bs_net">0</td></tr>
+                  <tr><td>MasterCard (D)</td><td id="bs_mc">0</td></tr>
+                  <tr><td>Visa (E)</td><td id="bs_visa">0</td></tr>
+                  <tr><td>Debit (F)</td><td id="bs_debit">0</td></tr>
+                  <tr><td>Cash (G)</td><td id="bs_cash">0</td></tr>
+                  <tr class="highlight-row"><td>Total Amount (D+E+F+G)</td><td id="bs_totalAmount">0</td></tr>
+                  <tr><td>Difference (Total Amount - C)</td><td id="bs_difference">0</td></tr>
+                </table>
+
+                <div class="pct-section">
+                  <h3>Percentage Analysis</h3>
+                  <table class="balance-table">
+                    <tr><td>Total Sales</td><td id="pct_totalSales">0</td></tr>
+                    <tr><td>Cash Payouts</td><td id="pct_cashPayouts">0</td></tr>
+                    <tr><td>Bank Payouts</td><td id="pct_bankPayouts">0</td></tr>
+                    <tr><td>Total Payouts</td><td id="pct_totalPayouts">0</td></tr>
+                    <tr class="highlight-row pct-highlight"><td>Payout %</td><td id="pct_payout">0%</td></tr>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="entry-sub-tabs entry-nested-tabs vendor-summary-tabs">
+          <button class="vendor-summary-tab active" data-panel="vendor-summary-tab-a">💸 Cash Payments by Vendor + Bank Payments by Vendor</button>
+          <button class="vendor-summary-tab" data-panel="vendor-summary-tab-b">📋 Expenses by Vendor + Salaries by Vendor + Other Income</button>
+        </div>
+
+        <div id="vendor-summary-tab-a" class="vendor-summary-panel active">
+          <div class="two-col">
+            <div class="card">
+              <div class="card-header hdr-cash">
+                <h2>💸 Cash Payments by Vendor</h2>
+              </div>
+              <div class="card-body" style="padding:0">
+                <div class="table-responsive">
+                  <table class="data-table">
+                    <thead>
+                      <tr>
+                        <th>Vendor</th>
+                        <th class="text-right">Amount</th>
+                        <th class="text-right">HST</th>
+                        <th class="text-right">Total</th>
+                      </tr>
+                    </thead>
+                    <tbody id="cashSumTbody"></tbody>
+                    <tfoot>
+                      <tr>
+                        <td style="font-weight:700">Grand Total</td>
+                        <td class="text-right" id="cashSumFoot_amt"><strong>0</strong></td>
+                        <td class="text-right" id="cashSumFoot_hst"><strong>0</strong></td>
+                        <td class="text-right" id="cashSumFoot_total"><strong>0</strong></td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-header hdr-bank">
+                <h2>🏦 Bank Payments by Vendor</h2>
+              </div>
+              <div class="card-body" style="padding:0">
+                <div class="table-responsive">
+                  <table class="data-table">
+                    <thead>
+                      <tr>
+                        <th>Vendor</th>
+                        <th class="text-right">Amount</th>
+                        <th class="text-right">HST</th>
+                        <th class="text-right">Total</th>
+                      </tr>
+                    </thead>
+                    <tbody id="bankSumTbody"></tbody>
+                    <tfoot>
+                      <tr>
+                        <td style="font-weight:700">Grand Total</td>
+                        <td class="text-right" id="bankSumFoot_amt"><strong>0</strong></td>
+                        <td class="text-right" id="bankSumFoot_hst"><strong>0</strong></td>
+                        <td class="text-right" id="bankSumFoot_total"><strong>0</strong></td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div id="vendor-summary-tab-b" class="vendor-summary-panel">
+          <div class="edit-three-col">
+            <div class="card">
+              <div class="card-header hdr-expense">
+                <h2>📋 Expenses by Vendor</h2>
+              </div>
+              <div class="card-body" style="padding:0">
+                <div class="table-responsive">
+                  <table class="data-table">
+                    <thead>
+                      <tr>
+                        <th>Vendor</th>
+                        <th class="text-right">Amount</th>
+                        <th class="text-right">HST</th>
+                        <th class="text-right">Total</th>
+                      </tr>
+                    </thead>
+                    <tbody id="expenseSumTbody"></tbody>
+                    <tfoot>
+                      <tr>
+                        <td style="font-weight:700">Grand Total</td>
+                        <td class="text-right" id="expenseSumFoot_amt"><strong>0</strong></td>
+                        <td class="text-right" id="expenseSumFoot_hst"><strong>0</strong></td>
+                        <td class="text-right" id="expenseSumFoot_total"><strong>0</strong></td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-header hdr-salary">
+                <h2>👥 Salaries by Vendor</h2>
+              </div>
+              <div class="card-body" style="padding:0">
+                <div class="table-responsive">
+                  <table class="data-table">
+                    <thead>
+                      <tr>
+                        <th>Employee</th>
+                        <th class="text-right">Amount</th>
+                      </tr>
+                    </thead>
+                    <tbody id="salarySumTbody"></tbody>
+                    <tfoot>
+                      <tr>
+                        <td style="font-weight:700">Grand Total</td>
+                        <td class="text-right" id="salarySumFoot_amt"><strong>0</strong></td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-header hdr-other">
+                <h2>💹 Other Income by Vendor</h2>
+              </div>
+              <div class="card-body" style="padding:0">
+                <div class="table-responsive">
+                  <table class="data-table">
+                    <thead>
+                      <tr>
+                        <th>Vendor / Source</th>
+                        <th class="text-right">Amount</th>
+                      </tr>
+                    </thead>
+                    <tbody id="otherIncomeSumTbody"></tbody>
+                    <tfoot>
+                      <tr>
+                        <td style="font-weight:700">Grand Total</td>
+                        <td class="text-right" id="otherIncomeSumFoot_amt"><strong>0</strong></td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card section-card">
+          <div class="card-header hdr-report">
+            <h2>🗓️ Daily Sales Review</h2>
+          </div>
+          <div class="card-body" style="padding:0">
+            <div class="table-responsive">
+              <table class="data-table daily-review-table">
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th class="text-right">Total</th>
+                    <th class="text-right">Sales</th>
+                    <th class="text-right">HST</th>
+                    <th class="text-right">Online</th>
+                    <th class="text-right">Instant</th>
+                    <th class="text-right">CC + Cell</th>
+                    <th class="text-right">GC</th>
+                    <th class="text-right">Non-Add</th>
+                    <th class="text-right">MC</th>
+                    <th class="text-right">Visa</th>
+                    <th class="text-right">Debit</th>
+                    <th class="text-right">Cash</th>
+                    <th class="text-right">Lottery Payment</th>
+                    <th class="text-right">Lottery Income</th>
+                    <th class="text-center">Edit</th>
+                  </tr>
+                </thead>
+                <tbody id="dailySalesReviewTbody"></tbody>
+                <tfoot>
+                  <tr>
+                    <td style="font-weight:700">Totals</td>
+                    <td class="text-right" id="dailyReviewFoot_total"><strong>0</strong></td>
+                    <td class="text-right" id="dailyReviewFoot_sales"><strong>0</strong></td>
+                    <td class="text-right" id="dailyReviewFoot_hst"><strong>0</strong></td>
+                    <td class="text-right" id="dailyReviewFoot_online"><strong>0</strong></td>
+                    <td class="text-right" id="dailyReviewFoot_instant"><strong>0</strong></td>
+                    <td class="text-right" id="dailyReviewFoot_cc"><strong>0</strong></td>
+                    <td class="text-right" id="dailyReviewFoot_gc"><strong>0</strong></td>
+                    <td class="text-right" id="dailyReviewFoot_nonAdd"><strong>0</strong></td>
+                    <td class="text-right" id="dailyReviewFoot_mc"><strong>0</strong></td>
+                    <td class="text-right" id="dailyReviewFoot_visa"><strong>0</strong></td>
+                    <td class="text-right" id="dailyReviewFoot_debit"><strong>0</strong></td>
+                    <td class="text-right" id="dailyReviewFoot_cash"><strong>0</strong></td>
+                    <td class="text-right" id="dailyReviewFoot_lotteryPayment"><strong>0</strong></td>
+                    <td class="text-right" id="dailyReviewFoot_lotteryIncome"><strong>0</strong></td>
+                    <td></td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ---- Annual Report ---- -->
+      <div id="rp-annual" class="report-panel">
+        <div class="card">
+          <div class="date-nav">
+            <div class="form-group" style="flex-direction:row;align-items:center;gap:8px;margin:0">
+              <label style="margin:0">Year:</label>
+              <select id="annualYear" class="form-control" style="width:100px"></select>
+            </div>
+          </div>
+        </div>
+
+        <div class="entry-sub-tabs annual-sub-tabs">
+          <button class="annual-sub-tab active" data-panel="annual-summary-panel">📅 Annual Summary</button>
+          <button class="annual-sub-tab" data-panel="annual-hst-panel">🧾 HST Summary</button>
+        </div>
+
+        <div id="annual-summary-panel" class="annual-subpanel active">
+          <div class="card section-card">
+            <div class="card-header hdr-annual">
+              <h2>📅 Annual Report - Section 1</h2>
+            </div>
+            <div class="card-body" style="padding:0">
+              <div class="table-responsive">
+                <table class="data-table">
+                  <thead>
+                    <tr class="group-header-row">
+                      <th rowspan="2">Month</th>
+                      <th colspan="5" class="group-head sales-head">Sales</th>
+                      <th colspan="1" class="group-head purchase-head">Purchases</th>
+                      <th colspan="3" class="group-head income-head">Income</th>
+                      <th colspan="1" class="group-head difference-head">Difference</th>
+                    </tr>
+                    <tr>
+                      <th class="text-right">POS</th>
+                      <th class="text-right">Online</th>
+                      <th class="text-right">Instant</th>
+                      <th class="text-right">CC + GC</th>
+                      <th class="text-right">Total</th>
+                      <th class="text-right">Cash Payments</th>
+                      <th class="text-right">Interac</th>
+                      <th class="text-right">Cash Deposits</th>
+                      <th class="text-right">Total</th>
+                      <th class="text-right">Difference</th>
+                    </tr>
+                  </thead>
+                  <tbody id="annualSection1Tbody"></tbody>
+                  <tfoot>
+                    <tr>
+                      <td style="font-weight:700">Annual Total</td>
+                      <td class="text-right" id="ann1_salesBase"><strong>0</strong></td>
+                      <td class="text-right" id="ann1_online"><strong>0</strong></td>
+                      <td class="text-right" id="ann1_instant"><strong>0</strong></td>
+                      <td class="text-right" id="ann1_cc"><strong>0</strong></td>
+                      <td class="text-right" id="ann1_salesTotal"><strong>0</strong></td>
+                      <td class="text-right" id="ann1_purchases"><strong>0</strong></td>
+                      <td class="text-right" id="ann1_interac"><strong>0</strong></td>
+                      <td class="text-right" id="ann1_cashDeposits"><strong>0</strong></td>
+                      <td class="text-right" id="ann1_incomeTotal"><strong>0</strong></td>
+                      <td class="text-right" id="ann1_difference"><strong>0</strong></td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <div class="card section-card">
+            <div class="card-header hdr-report">
+              <h2>🧾 Annual Report - Section 2</h2>
+            </div>
+            <div class="card-body" style="padding:0">
+              <div class="table-responsive">
+                <table class="data-table">
+                  <thead>
+                    <tr>
+                      <th>Month</th>
+                      <th class="text-right">Bank Payments</th>
+                      <th class="text-right">Expenses</th>
+                      <th class="text-right">Salaries</th>
+                      <th class="text-right">Lottery Payment</th>
+                      <th class="text-right">Lottery Income</th>
+                      <th class="text-right">Other Income</th>
+                    </tr>
+                  </thead>
+                  <tbody id="annualSection2Tbody"></tbody>
+                  <tfoot>
+                    <tr>
+                      <td style="font-weight:700">Annual Total</td>
+                      <td class="text-right" id="ann2_bank"><strong>0</strong></td>
+                      <td class="text-right" id="ann2_expenses"><strong>0</strong></td>
+                      <td class="text-right" id="ann2_salaries"><strong>0</strong></td>
+                      <td class="text-right" id="ann2_lotteryPayment"><strong>0</strong></td>
+                      <td class="text-right" id="ann2_lotteryIncome"><strong>0</strong></td>
+                      <td class="text-right" id="ann2_otherIncome"><strong>0</strong></td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <div class="card section-card">
+            <div class="card-header hdr-lcbo">
+              <h2>📦 Annual Report - Quarterly Summary</h2>
+            </div>
+            <div class="card-body" style="padding:0">
+              <div class="table-responsive">
+                <table class="data-table">
+                  <thead>
+                    <tr class="group-header-row">
+                      <th rowspan="2">Quarter</th>
+                      <th colspan="5" class="group-head sales-head">Sales</th>
+                      <th colspan="5" class="group-head purchase-head">Purchases</th>
+                      <th colspan="1" class="group-head difference-head">Difference</th>
+                    </tr>
+                    <tr>
+                      <th class="text-right">Total (POS+HST)</th>
+                      <th class="text-right">CC</th>
+                      <th class="text-right">Lottery Income</th>
+                      <th class="text-right">Other Income</th>
+                      <th class="text-right">Total</th>
+                      <th class="text-right">Cash Payments</th>
+                      <th class="text-right">Bank Payments</th>
+                      <th class="text-right">Expenses</th>
+                      <th class="text-right">Salaries</th>
+                      <th class="text-right">Total</th>
+                      <th class="text-right">Difference</th>
+                    </tr>
+                  </thead>
+                  <tbody id="annualQuarterlyTbody"></tbody>
+                  <tfoot>
+                    <tr>
+                      <td style="font-weight:700">Annual Total</td>
+                      <td class="text-right" id="ann3_sales"><strong>0</strong></td>
+                      <td class="text-right" id="ann3_cc"><strong>0</strong></td>
+                      <td class="text-right" id="ann3_lotteryIncome"><strong>0</strong></td>
+                      <td class="text-right" id="ann3_otherIncome"><strong>0</strong></td>
+                      <td class="text-right" id="ann3_totalSales"><strong>0</strong></td>
+                      <td class="text-right" id="ann3_cashPayments"><strong>0</strong></td>
+                      <td class="text-right" id="ann3_bankPayments"><strong>0</strong></td>
+                      <td class="text-right" id="ann3_expenses"><strong>0</strong></td>
+                      <td class="text-right" id="ann3_salaries"><strong>0</strong></td>
+                      <td class="text-right" id="ann3_totalPayments"><strong>0</strong></td>
+                      <td class="text-right" id="ann3_difference"><strong>0</strong></td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div id="annual-hst-panel" class="annual-subpanel">
+          <div class="card section-card">
+            <div class="card-header hdr-annual">
+              <h2>🧾 HST Summary - Sales & Purchases</h2>
+            </div>
+            <div class="card-body" style="padding:0">
+              <div class="table-responsive">
+                <table class="data-table">
+                  <thead>
+                    <tr>
+                      <th>Month</th>
+                      <th class="text-right">Sales</th>
+                      <th class="text-right">Online</th>
+                      <th class="text-right">Instant</th>
+                      <th class="text-right">CC + GC</th>
+                      <th class="text-right">Total</th>
+                      <th class="text-right">Cash Payments</th>
+                      <th class="text-right">Bank Payments</th>
+                      <th class="text-right">Lottery Payments</th>
+                      <th class="text-right">Total Purchases</th>
+                      <th class="text-right">Expenses</th>
+                    </tr>
+                  </thead>
+                  <tbody id="annualHstSection1Tbody"></tbody>
+                  <tfoot>
+                    <tr>
+                      <td style="font-weight:700">Annual Total</td>
+                      <td class="text-right" id="annHst1_sales"><strong>0</strong></td>
+                      <td class="text-right" id="annHst1_online"><strong>0</strong></td>
+                      <td class="text-right" id="annHst1_instant"><strong>0</strong></td>
+                      <td class="text-right" id="annHst1_cc"><strong>0</strong></td>
+                      <td class="text-right" id="annHst1_total"><strong>0</strong></td>
+                      <td class="text-right" id="annHst1_cashPayments"><strong>0</strong></td>
+                      <td class="text-right" id="annHst1_bankPayments"><strong>0</strong></td>
+                      <td class="text-right" id="annHst1_lotteryPayments"><strong>0</strong></td>
+                      <td class="text-right" id="annHst1_totalPurchases"><strong>0</strong></td>
+                      <td class="text-right" id="annHst1_expenses"><strong>0</strong></td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <div class="card section-card">
+            <div class="card-header hdr-report">
+              <h2>📊 HST Summary - Tax & Income</h2>
+            </div>
+            <div class="card-body" style="padding:0">
+              <div class="table-responsive">
+                <table class="data-table">
+                  <thead>
+                    <tr>
+                      <th>Month</th>
+                      <th class="text-right">Sales-HST</th>
+                      <th class="text-right">Cash Payments-HST</th>
+                      <th class="text-right">Bank Payments-HST</th>
+                      <th class="text-right">Salaries</th>
+                      <th class="text-right">Total (Cash + Bank HST)</th>
+                      <th class="text-right">Utilities-HST</th>
+                      <th class="text-right">Interac</th>
+                      <th class="text-right">Cash Deposits</th>
+                      <th class="text-right">Lottery Income</th>
+                      <th class="text-right">Other Income</th>
+                    </tr>
+                  </thead>
+                  <tbody id="annualHstSection2Tbody"></tbody>
+                  <tfoot>
+                    <tr>
+                      <td style="font-weight:700">Annual Total</td>
+                      <td class="text-right" id="annHst2_salesHst"><strong>0</strong></td>
+                      <td class="text-right" id="annHst2_cashHst"><strong>0</strong></td>
+                      <td class="text-right" id="annHst2_bankHst"><strong>0</strong></td>
+                      <td class="text-right" id="annHst2_salaries"><strong>0</strong></td>
+                      <td class="text-right" id="annHst2_totalHst"><strong>0</strong></td>
+                      <td class="text-right" id="annHst2_utilitiesHst"><strong>0</strong></td>
+                      <td class="text-right" id="annHst2_interac"><strong>0</strong></td>
+                      <td class="text-right" id="annHst2_cashDeposits"><strong>0</strong></td>
+                      <td class="text-right" id="annHst2_lotteryIncome"><strong>0</strong></td>
+                      <td class="text-right" id="annHst2_otherIncome"><strong>0</strong></td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div><!-- /rp-annual -->
+
+      <div id="rp-dashboard" class="report-panel">
+        <div class="card">
+          <div class="report-toolbar">
+            <div class="form-group" style="flex-direction:row;align-items:center;gap:8px;margin:0">
+              <label style="margin:0">Year:</label>
+              <select id="dashboardYear" class="form-control" style="width:100px"></select>
+            </div>
+            <div class="form-group" style="flex-direction:row;align-items:center;gap:8px;margin:0">
+              <label style="margin:0">Store:</label>
+              <select id="performanceStore" class="form-control" style="width:220px"></select>
+            </div>
+            <span class="month-label" id="dashboardPeriodLabel"></span>
+            <span class="month-label" id="performancePeriodLabel"></span>
+          </div>
+        </div>
+
+        <div class="card section-card">
+          <div class="card-header hdr-report">
+            <h2>🏬 Store Sales Comparison</h2>
+          </div>
+          <div class="card-body">
+            <p class="section-lead">Operating Difference = Total Sales - Total Income - Total Payments.</p>
+          </div>
+          <div class="card-body" style="padding:0">
+            <div class="table-responsive">
+              <table class="data-table store-dashboard-table">
+                <thead>
+                  <tr>
+                    <th>Store</th>
+                    <th class="text-right">Total Sales</th>
+                    <th class="text-right">Total Income</th>
+                    <th class="text-right">Cash Payments</th>
+                    <th class="text-right">Bank Payments</th>
+                    <th class="text-right">Expenses</th>
+                    <th class="text-right">Salaries</th>
+                    <th class="text-right">Total Payments</th>
+                    <th class="text-right">Operating Difference</th>
+                  </tr>
+                </thead>
+                <tbody id="storeDashboardTbody"></tbody>
+                <tfoot>
+                  <tr>
+                    <td style="font-weight:700">Combined Total</td>
+                    <td class="text-right" id="dashboardFoot_salesTotal"><strong>0</strong></td>
+                    <td class="text-right" id="dashboardFoot_incomeTotal"><strong>0</strong></td>
+                    <td class="text-right" id="dashboardFoot_cashPayments"><strong>0</strong></td>
+                    <td class="text-right" id="dashboardFoot_bankPayments"><strong>0</strong></td>
+                    <td class="text-right" id="dashboardFoot_expenses"><strong>0</strong></td>
+                    <td class="text-right" id="dashboardFoot_salaries"><strong>0</strong></td>
+                    <td class="text-right" id="dashboardFoot_totalPayouts"><strong>0</strong></td>
+                    <td class="text-right" id="dashboardFoot_difference"><strong>0</strong></td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <div class="card section-card">
+          <div class="card-header hdr-lcbo">
+            <h2>📦 LCBO and Credit Card Summary</h2>
+          </div>
+          <div class="card-body">
+            <p class="section-lead">Gap = LCBO Total - Credit Card Payments for the selected year across all stores.</p>
+          </div>
+          <div class="card-body" style="padding:0">
+            <div class="table-responsive">
+              <table class="data-table store-dashboard-table">
+                <thead>
+                  <tr>
+                    <th>Store</th>
+                    <th class="text-right">LCBO Total</th>
+                    <th class="text-right">Credit Card Payments</th>
+                    <th class="text-right">Gap</th>
+                  </tr>
+                </thead>
+                <tbody id="storeLcboDashboardTbody"></tbody>
+                <tfoot>
+                  <tr>
+                    <td style="font-weight:700">Combined Total</td>
+                    <td class="text-right" id="dashboardLcboFoot_total"><strong>0</strong></td>
+                    <td class="text-right" id="dashboardLcboFoot_cards"><strong>0</strong></td>
+                    <td class="text-right" id="dashboardLcboFoot_gap"><strong>0</strong></td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <div class="card section-card">
+          <div class="card-header hdr-report">
+            <h2 id="performanceSalesCashTitle">📈 Monthly Sales vs Cash Payments</h2>
+          </div>
+          <div class="card-body">
+            <p class="section-lead" id="performanceSalesCashLead">Yearly month-by-month trend comparing total sales and cash payouts.</p>
+          </div>
+          <div class="card-body" style="padding-top:0">
+            <div id="perfTrendChart" class="bi-chart"></div>
+          </div>
+        </div>
+
+        <div class="card section-card">
+          <div class="card-header hdr-balance">
+            <h2>🏪 Monthly Sales Trend by Store</h2>
+          </div>
+          <div class="card-body">
+            <p class="section-lead">Store-wise monthly sales lines to compare growth and seasonality across stores.</p>
+          </div>
+          <div class="card-body" style="padding-top:0">
+            <div id="perfStoreTrendChart" class="bi-chart"></div>
+          </div>
+        </div>
+
+        <div class="two-col">
+          <div class="card section-card">
+            <div class="card-header hdr-annual">
+              <h2>💰 Annual Profit by Store</h2>
+            </div>
+            <div class="card-body">
+              <p class="section-lead">Estimated annual profit (operating difference) ranked by store.</p>
+            </div>
+            <div class="card-body" style="padding-top:0">
+              <div id="perfProfitChart" class="bi-bar-list"></div>
+            </div>
+          </div>
+        </div>
+      </div><!-- /rp-dashboard -->
+
+      <div id="rp-export" class="report-panel">
+        <div class="card section-card">
+          <div class="card-header hdr-annual">
+            <h2>📤 Excel Import / Export</h2>
+          </div>
+          <div class="card-body">
+            <div class="export-grid">
+              <div class="export-copy">
+                <p class="section-lead">Download or import yearly workbooks in Lakeshore format with separate store/year selection for each action.</p>
+                <div class="export-feature-list">
+                  <span>Summary sheet with monthly and quarterly totals</span>
+                  <span>January to December sheets with daily sales and vendor payment sections</span>
+                  <span>Monthly balance sheet panel and HST summary sheet</span>
+                  <span>Supplemental LCBO and credit card tabs when data exists</span>
+                  <span>Import writes back into the same source tables for the selected store/year</span>
+                </div>
+              </div>
+              <div class="export-actions-stack">
+                <div class="export-actions">
+                  <h3 class="export-actions-title">Export Workbook</h3>
+                  <div class="form-group">
+                    <label for="exportStoreSelect">Store</label>
+                    <select id="exportStoreSelect" class="form-control"></select>
+                  </div>
+                  <div class="form-group">
+                    <label for="exportYear">Year</label>
+                    <select id="exportYear" class="form-control"></select>
+                  </div>
+                  <button id="exportWorkbookBtn" class="btn btn-primary">⬇️ Export Excel Workbook</button>
+                </div>
+                <div class="export-actions">
+                  <h3 class="export-actions-title">Import Workbook</h3>
+                  <div class="form-group">
+                    <label for="importStoreSelect">Store</label>
+                    <select id="importStoreSelect" class="form-control"></select>
+                  </div>
+                  <div class="form-group">
+                    <label for="importYear">Year</label>
+                    <select id="importYear" class="form-control"></select>
+                  </div>
+                  <input id="importWorkbookFile" class="form-control" type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet">
+                  <button id="importWorkbookBtn" class="btn btn-secondary">⬆️ Import Excel Workbook</button>
+                </div>
+                <p class="export-note">The file downloads as a standard .xlsx workbook that can be opened in Excel.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div><!-- /rp-export -->
+
+    </div><!-- /panel-reports -->
+
+  </main><!-- /main-content -->
+</div><!-- /app -->
+
+
+<!-- ===== MODAL ===== -->
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 id="modalTitle">Add Record</h3>
+      <button class="modal-close" id="modalClose">✕</button>
+    </div>
+    <div class="modal-body" id="modalBody"></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" id="modalCancel">Cancel</button>
+      <button class="btn btn-primary" id="modalSave">💾 Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== TOAST CONTAINER ===== -->
+<div class="toast-container" id="toastContainer"></div>
+
+<!-- ===== SCRIPTS ===== -->
+<script src="js/data.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/salesEntry.js"></script>
+<script src="js/monthlyEntry.js"></script>
+<script src="js/lcboEntry.js"></script>
+<script src="js/creditCardReconciliation.js"></script>
+<script src="js/reports.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

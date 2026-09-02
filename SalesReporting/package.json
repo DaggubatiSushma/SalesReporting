@@ -1,0 +1,10 @@
+{
+  "name": "sales-reporting-dashboard",
+  "version": "1.0.0",
+  "description": "Multi-store sales reporting dashboard with Python and SQLite backend",
+  "scripts": {
+    "install:python": ".\\.venv\\Scripts\\pip.exe install -r requirements.txt",
+    "start": ".\\.venv\\Scripts\\python.exe main.py"
+  },
+  "keywords": ["sales", "reporting", "dashboard"]
+}

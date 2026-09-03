@@ -19,6 +19,7 @@ from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils.exceptions import InvalidFileException
 from openpyxl.utils import get_column_letter
 from werkzeug.exceptions import HTTPException
+from dotenv import load_dotenv
 
 try:
     import psycopg
@@ -29,6 +30,7 @@ except ImportError:  # pragma: no cover
 BASE_DIR = Path(__file__).resolve().parent
 FRONTEND_DIR = BASE_DIR / "frontend"
 DATABASE_PATH = BASE_DIR / "sales_reporting.db"
+load_dotenv(BASE_DIR / ".env")
 DATABASE_URL = os.environ.get("DATABASE_URL")
 USE_POSTGRES = bool(DATABASE_URL)
 SCHEMA_PATH = (

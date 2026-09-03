@@ -5,13 +5,35 @@
 document.addEventListener('DOMContentLoaded', async () => {
   const AUTH_TAB_KEY = 'sr_tab_authenticated';
   const AUTH_SESSION_KEY = 'sr_session_auth_key';
+  const APP_MODULE_KEY = 'sr_selected_module';
   const appShell = document.getElementById('appShell');
+  const qfarmScreen = document.getElementById('qfarmScreen');
   const loginScreen = document.getElementById('loginScreen');
+  const loginCard = document.getElementById('loginCard');
+  const moduleSelector = document.getElementById('moduleSelector');
   const loginForm = document.getElementById('loginForm');
   const loginError = document.getElementById('loginError');
   const loginBtn = document.getElementById('loginBtn');
   const logoutBtn = document.getElementById('logoutBtn');
+  const switchModuleBtn = document.getElementById('switchModuleBtn');
+  const qfarmBackBtn = document.getElementById('qfarmBackBtn');
   let appInitialized = false;
+
+  function getSelectedModule() {
+    return sessionStorage.getItem(APP_MODULE_KEY) || '';
+  }
+
+  function setSelectedModule(moduleName) {
+    if (moduleName) {
+      sessionStorage.setItem(APP_MODULE_KEY, moduleName);
+    } else {
+      sessionStorage.removeItem(APP_MODULE_KEY);
+    }
+  }
+
+  function clearSelectedModule() {
+    sessionStorage.removeItem(APP_MODULE_KEY);
+  }
 
   function hasTabAuth() {
     return sessionStorage.getItem(AUTH_TAB_KEY) === '1';
@@ -52,7 +74,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   function showLoginScreen(message = '') {
     if (appShell) appShell.classList.add('hidden');
+    if (qfarmScreen) qfarmScreen.classList.add('hidden');
     if (loginScreen) loginScreen.classList.remove('hidden');
+    if (loginCard) loginCard.classList.remove('hidden');
+    if (moduleSelector) moduleSelector.classList.add('hidden');
     if (loginError) {
       loginError.textContent = message;
       loginError.classList.toggle('hidden', !message);
@@ -64,9 +89,32 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }
 
+  function showModuleSelector() {
+    if (appShell) appShell.classList.add('hidden');
+    if (qfarmScreen) qfarmScreen.classList.add('hidden');
+    if (loginScreen) loginScreen.classList.remove('hidden');
+    if (loginCard) loginCard.classList.add('hidden');
+    if (moduleSelector) moduleSelector.classList.remove('hidden');
+    if (loginError) {
+      loginError.textContent = '';
+      loginError.classList.add('hidden');
+    }
+  }
+
   function showApplication() {
     if (loginScreen) loginScreen.classList.add('hidden');
+    if (qfarmScreen) qfarmScreen.classList.add('hidden');
     if (appShell) appShell.classList.remove('hidden');
+    if (loginError) {
+      loginError.textContent = '';
+      loginError.classList.add('hidden');
+    }
+  }
+
+  function showQFarm() {
+    if (loginScreen) loginScreen.classList.add('hidden');
+    if (appShell) appShell.classList.add('hidden');
+    if (qfarmScreen) qfarmScreen.classList.remove('hidden');
     if (loginError) {
       loginError.textContent = '';
       loginError.classList.add('hidden');
@@ -189,7 +237,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       try {
         const authResult = await DataStore.login(username.trim(), password);
         markClientAuth(authResult?.authKey);
-        await initializeApplication();
+        showModuleSelector();
       } catch (error) {
         clearClientAuth();
         if (loginError) {
@@ -201,6 +249,26 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
     });
 
+    document.getElementById('qmarketModuleBtn')?.addEventListener('click', async () => {
+      setSelectedModule('qmarket');
+      await initializeApplication();
+    });
+
+    document.getElementById('qfarmModuleBtn')?.addEventListener('click', () => {
+      setSelectedModule('qfarm');
+      showQFarm();
+    });
+
+    switchModuleBtn?.addEventListener('click', () => {
+      clearSelectedModule();
+      showModuleSelector();
+    });
+
+    qfarmBackBtn?.addEventListener('click', () => {
+      clearSelectedModule();
+      showModuleSelector();
+    });
+
     logoutBtn?.addEventListener('click', async () => {
       try {
         await DataStore.logout();
@@ -208,6 +276,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         console.error(error);
       }
       clearClientAuth();
+      clearSelectedModule();
       showLoginScreen();
     });
 
@@ -217,10 +286,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 
     const authStatus = await DataStore.getAuthStatus();
+    const selectedModule = getSelectedModule();
     if (authStatus?.authenticated && hasClientAuth(authStatus?.authKey)) {
-      await initializeApplication();
+      if (selectedModule === 'qfarm') {
+        showQFarm();
+      } else if (selectedModule === 'qmarket') {
+        await initializeApplication();
+      } else {
+        showModuleSelector();
+      }
     } else {
       clearClientAuth();
+      clearSelectedModule();
       showLoginScreen();
     }
   } catch (error) {

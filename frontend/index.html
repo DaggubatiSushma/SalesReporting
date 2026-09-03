@@ -8,7 +8,7 @@
 </head>
 <body>
 <div id="loginScreen" class="login-screen">
-  <div class="login-card">
+  <div id="loginCard" class="login-card">
     <div class="login-header">
       <div class="brand-icon">🔐</div>
       <div>
@@ -29,6 +29,35 @@
       <button id="loginBtn" class="btn btn-primary btn-lg" type="submit">Sign In</button>
     </form>
   </div>
+
+  <div id="moduleSelector" class="login-card module-selector hidden">
+    <div class="login-header">
+      <div class="brand-icon">🧭</div>
+      <div>
+        <h1>Select a module</h1>
+        <p>Choose the workspace you want to open</p>
+      </div>
+    </div>
+    <div class="module-choice-grid">
+      <button id="qmarketModuleBtn" class="module-option module-option--qmarket" type="button">
+        <span class="module-name">Qmarket</span>
+        <small>Open the existing sales reporting functionality</small>
+      </button>
+      <button id="qfarmModuleBtn" class="module-option module-option--qfarm" type="button">
+        <span class="module-name">QFarm</span>
+        <small>Open the next-generation farm workflow</small>
+      </button>
+    </div>
+  </div>
+</div>
+
+<div id="qfarmScreen" class="qfarm-screen hidden">
+  <div class="qfarm-card">
+    <div class="brand-icon">🌾</div>
+    <h1>QFarm</h1>
+    <p>This module is not yet implemented but is reserved for the next workflow.</p>
+    <button id="qfarmBackBtn" class="btn btn-primary" type="button">Back to module selector</button>
+  </div>
 </div>
 
 <div id="appShell" class="app hidden">
@@ -44,6 +73,7 @@
     </div>
 
     <div class="header-actions">
+      <button id="switchModuleBtn" class="btn btn-ghost btn-sm header-module-btn" type="button">Switch Module</button>
       <div class="store-selector">
         <span class="store-selector-label">🏪 Store:</span>
         <select id="storeSelect"></select>

@@ -20,10 +20,22 @@ from openpyxl.utils.exceptions import InvalidFileException
 from openpyxl.utils import get_column_letter
 from werkzeug.exceptions import HTTPException
 
+try:
+    import psycopg
+except ImportError:  # pragma: no cover
+    psycopg = None
+
 
 BASE_DIR = Path(__file__).resolve().parent
+FRONTEND_DIR = BASE_DIR / "frontend"
 DATABASE_PATH = BASE_DIR / "sales_reporting.db"
-SCHEMA_PATH = BASE_DIR / "schema.sql"
+DATABASE_URL = os.environ.get("DATABASE_URL")
+USE_POSTGRES = bool(DATABASE_URL)
+SCHEMA_PATH = (
+    (BASE_DIR / "backend" / ("schema.postgres.sql" if USE_POSTGRES else "schema.sql")).resolve()
+    if (BASE_DIR / "backend").exists()
+    else (BASE_DIR / ("schema.postgres.sql" if USE_POSTGRES else "schema.sql")).resolve()
+)
 
 app = Flask(__name__)
 app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "sales-reporting-secret-change-me")
@@ -205,14 +217,98 @@ EXPORT_BORDER = Border(
 )
 
 
-def get_db() -> sqlite3.Connection:
+class PgResultProxy:
+    def __init__(self, cursor):
+        self._cursor = cursor
+
+    @property
+    def rowcount(self):
+        return self._cursor.rowcount
+
+    @property
+    def lastrowid(self):
+        return self._cursor.lastrowid
+
+    def fetchone(self):
+        return self._cursor.fetchone()
+
+    def fetchall(self):
+        return self._cursor.fetchall()
+
+
+class PgConnectionProxy:
+    def __init__(self, connection):
+        self._connection = connection
+
+    def execute(self, query, params=()):
+        normalized = query.replace("?", "%s")
+        cursor = self._connection.cursor(row_factory=psycopg.rows.dict_row)
+        cursor.execute(normalized, params)
+        return PgResultProxy(cursor)
+
+    def commit(self):
+        self._connection.commit()
+
+    def rollback(self):
+        self._connection.rollback()
+
+    def close(self):
+        self._connection.close()
+
+
+def run_sql_script(connection, sql_script: str) -> None:
+    statements: list[str] = []
+    current: list[str] = []
+    quote_char: str | None = None
+    escape = False
+    for char in sql_script:
+        if escape:
+            current.append(char)
+            escape = False
+            continue
+        if quote_char:
+            current.append(char)
+            if char == "\\":
+                escape = True
+            elif char == quote_char:
+                quote_char = None
+            continue
+        if char in {"'", '"'}:
+            quote_char = char
+            current.append(char)
+            continue
+        if char == ";":
+            statement = "".join(current).strip()
+            if statement:
+                statements.append(statement)
+            current = []
+            continue
+        current.append(char)
+    tail = "".join(current).strip()
+    if tail:
+        statements.append(tail)
+    with connection.cursor() as cursor:
+        for statement in statements:
+            if not statement.strip():
+                continue
+            cursor.execute(statement)
+
+
+def get_db():
     ensure_app_initialized()
     if "db" not in g:
-        connection = sqlite3.connect(DATABASE_PATH, timeout=30)
-        connection.row_factory = sqlite3.Row
-        connection.execute("PRAGMA busy_timeout = 30000")
-        connection.execute("PRAGMA foreign_keys = ON")
-        g.db = connection
+        if USE_POSTGRES:
+            if psycopg is None:
+                raise RuntimeError("psycopg is required when DATABASE_URL is configured.")
+            connection = psycopg.connect(DATABASE_URL, sslmode="require")
+            connection.autocommit = False
+            g.db = PgConnectionProxy(connection)
+        else:
+            connection = sqlite3.connect(DATABASE_PATH, timeout=30)
+            connection.row_factory = sqlite3.Row
+            connection.execute("PRAGMA busy_timeout = 30000")
+            connection.execute("PRAGMA foreign_keys = ON")
+            g.db = connection
     return g.db
 
 
@@ -224,10 +320,49 @@ def close_db(_: BaseException | None) -> None:
 
 
 def init_db() -> None:
-    def ensure_table_column(connection: sqlite3.Connection, table: str, column: str, definition: str) -> None:
+    def ensure_table_column(connection, table: str, column: str, definition: str) -> None:
+        if USE_POSTGRES:
+            columns = {
+                row["column_name"]
+                for row in connection.execute(
+                    """
+                    SELECT column_name
+                      FROM information_schema.columns
+                     WHERE table_schema = current_schema()
+                       AND table_name = %s
+                    """,
+                    (table,),
+                ).fetchall()
+            }
+            if column not in columns:
+                connection.execute(f"ALTER TABLE {table} ADD COLUMN {column} {definition}")
+            return
+
         columns = {row[1] for row in connection.execute(f"PRAGMA table_info({table})").fetchall()}
         if column not in columns:
             connection.execute(f"ALTER TABLE {table} ADD COLUMN {column} {definition}")
+
+    if USE_POSTGRES:
+        connection = psycopg.connect(DATABASE_URL, sslmode="require")
+        connection.autocommit = False
+        run_sql_script(connection, SCHEMA_PATH.read_text(encoding="utf-8"))
+        ensure_table_column(connection, "cash_payments", "source_type", "TEXT NOT NULL DEFAULT ''")
+        ensure_table_column(connection, "cash_payments", "source_ref_id", "INTEGER")
+        ensure_table_column(connection, "cash_payments", "source_note", "TEXT NOT NULL DEFAULT ''")
+        ensure_table_column(connection, "bank_payments", "source_type", "TEXT NOT NULL DEFAULT ''")
+        ensure_table_column(connection, "bank_payments", "source_ref_id", "INTEGER")
+        ensure_table_column(connection, "bank_payments", "source_note", "TEXT NOT NULL DEFAULT ''")
+        ensure_table_column(connection, "credit_card_reconciliation", "hst_cents", "INTEGER NOT NULL DEFAULT 0")
+        ensure_table_column(connection, "lcbo_monthly_workflows", "validated_amount", "REAL NOT NULL DEFAULT 0")
+        ensure_table_column(connection, "lcbo_monthly_workflows", "validated_at", "TEXT")
+        ensure_table_column(connection, "lcbo_monthly_workflows", "notes", "TEXT NOT NULL DEFAULT ''")
+        ensure_table_column(connection, "lcbo_monthly_workflows", "posted_at", "TEXT")
+        ensure_table_column(connection, "lcbo_monthly_workflows", "posted_resource", "TEXT")
+        ensure_table_column(connection, "lcbo_monthly_workflows", "posted_record_id", "INTEGER")
+        ensure_table_column(connection, "lcbo_monthly_workflows", "posted_payment_type", "TEXT")
+        connection.commit()
+        connection.close()
+        return
 
     DATABASE_PATH.parent.mkdir(parents=True, exist_ok=True)
     connection = sqlite3.connect(DATABASE_PATH, timeout=30)
@@ -382,6 +517,24 @@ def require_fields(payload: dict[str, Any], fields: tuple[str, ...]) -> None:
         abort(400, description=f"Missing required fields: {', '.join(missing)}")
 
 
+def month_filter_sql(date_col: str) -> str:
+    if USE_POSTGRES:
+        return f"substring({date_col}::text from 1 for 7)"
+    return f"substr({date_col}, 1, 7)"
+
+
+def year_filter_sql(date_col: str) -> str:
+    if USE_POSTGRES:
+        return f"EXTRACT(YEAR FROM {date_col}::date)"
+    return f"substr({date_col}, 1, 4)"
+
+
+def month_numeric_sql(date_col: str) -> str:
+    if USE_POSTGRES:
+        return f"CAST(EXTRACT(MONTH FROM {date_col}::date) AS INTEGER)"
+    return f"CAST(substr({date_col}, 6, 2) AS INTEGER)"
+
+
 def build_period_filters(
     date_col: str,
     year: int | None = None,
@@ -391,16 +544,16 @@ def build_period_filters(
     clauses: list[str] = []
     params: list[Any] = []
     if year and month:
-        clauses.append(f"substr({date_col}, 1, 7) = ?")
+        clauses.append(f"{month_filter_sql(date_col)} = ?")
         params.append(f"{year:04d}-{month:02d}")
     elif year and quarter:
         start_month = (quarter - 1) * 3 + 1
         end_month = start_month + 2
-        clauses.append(f"substr({date_col}, 1, 4) = ?")
-        clauses.append(f"CAST(substr({date_col}, 6, 2) AS INTEGER) BETWEEN ? AND ?")
+        clauses.append(f"{year_filter_sql(date_col)} = ?")
+        clauses.append(f"{month_numeric_sql(date_col)} BETWEEN ? AND ?")
         params.extend([f"{year:04d}", start_month, end_month])
     elif year:
-        clauses.append(f"substr({date_col}, 1, 4) = ?")
+        clauses.append(f"{year_filter_sql(date_col)} = ?")
         params.append(f"{year:04d}")
 
     return clauses, params
@@ -717,19 +870,19 @@ def fetch_lcbo_month_payload(store_id: int, year: int, month: int) -> dict[str, 
     period_key = month_period_key(year, month)
 
     lcbo_rows = db.execute(
-        """
+        f"""
         SELECT id, entry_date, vendor_name, invoice_no, credit_ending, amount, hst
           FROM lcbo_entries
-         WHERE store_id = ? AND substr(entry_date, 1, 7) = ?
+         WHERE store_id = ? AND {month_filter_sql('entry_date')} = ?
          ORDER BY entry_date ASC, id ASC
         """,
         (store_id, period_key),
     ).fetchall()
     payment_rows = db.execute(
-        """
+        f"""
         SELECT id, payment_date, purpose, amount
           FROM credit_card_payments
-         WHERE store_id = ? AND substr(payment_date, 1, 7) = ?
+         WHERE store_id = ? AND {month_filter_sql('payment_date')} = ?
          ORDER BY payment_date ASC, id ASC
         """,
         (store_id, period_key),
@@ -2276,7 +2429,7 @@ def replace_month_rows(
 ) -> None:
     period_key = month_period_key(year, month)
     db.execute(
-        f"DELETE FROM {table} WHERE store_id = ? AND substr({date_col}, 1, 7) = ?",
+        f"DELETE FROM {table} WHERE store_id = ? AND {month_filter_sql(date_col)} = ?",
         (store_id, period_key),
     )
     if not rows:
@@ -2299,7 +2452,7 @@ def replace_year_rows(
     rows: list[tuple[Any, ...]],
 ) -> None:
     db.execute(
-        f"DELETE FROM {table} WHERE store_id = ? AND substr({date_col}, 1, 4) = ?",
+        f"DELETE FROM {table} WHERE store_id = ? AND {year_filter_sql(date_col)} = ?",
         (store_id, f"{year:04d}"),
     )
     if not rows:
@@ -2312,17 +2465,17 @@ def replace_year_rows(
 
 @app.get("/")
 def index():
-    return send_from_directory(BASE_DIR, "index.html")
+    return send_from_directory(FRONTEND_DIR, "index.html")
 
 
 @app.get("/css/<path:filename>")
 def serve_css(filename: str):
-    return send_from_directory(BASE_DIR / "css", filename)
+    return send_from_directory(FRONTEND_DIR / "css", filename)
 
 
 @app.get("/js/<path:filename>")
 def serve_js(filename: str):
-    return send_from_directory(BASE_DIR / "js", filename)
+    return send_from_directory(FRONTEND_DIR / "js", filename)
 
 
 @app.get("/health")
@@ -2365,7 +2518,7 @@ def auth_logout():
 
 @app.get("/api/stores")
 def list_stores():
-    rows = get_db().execute("SELECT id, name, created_at FROM stores ORDER BY name COLLATE NOCASE, id").fetchall()
+    rows = get_db().execute("SELECT id, name, created_at FROM stores ORDER BY lower(name), id").fetchall()
     return jsonify([dict(row) for row in rows])
 
 
@@ -2491,7 +2644,7 @@ def store_comparison():
     today_value = date.today()
     year = request.args.get("year", type=int) or today_value.year
 
-    stores = fetch_rows("stores", ["id", "name"], order_by="name COLLATE NOCASE, id ASC")
+    stores = fetch_rows("stores", ["id", "name"], order_by="lower(name), id ASC")
     summaries: list[dict[str, Any]] = []
     for store in stores:
         dataset = build_store_dataset(store["id"], year)
@@ -2541,7 +2694,7 @@ def store_performance():
     today_value = date.today()
     year = request.args.get("year", type=int) or today_value.year
 
-    stores = fetch_rows("stores", ["id", "name"], order_by="name COLLATE NOCASE, id ASC")
+    stores = fetch_rows("stores", ["id", "name"], order_by="lower(name), id ASC")
     monthly_totals: list[dict[str, Any]] = []
     for index, month_name in enumerate(MONTH_NAMES, start=1):
         monthly_totals.append(

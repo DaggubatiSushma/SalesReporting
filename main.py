@@ -4,7 +4,6 @@ import argparse
 import calendar
 import os
 import secrets
-import sqlite3
 import threading
 from datetime import date, datetime
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
@@ -29,14 +28,14 @@ except ImportError:  # pragma: no cover
 
 BASE_DIR = Path(__file__).resolve().parent
 FRONTEND_DIR = BASE_DIR / "frontend"
-DATABASE_PATH = BASE_DIR / "sales_reporting.db"
 load_dotenv(BASE_DIR / ".env")
 DATABASE_URL = os.environ.get("DATABASE_URL")
-USE_POSTGRES = bool(DATABASE_URL)
+if not DATABASE_URL:
+    raise RuntimeError("DATABASE_URL is required. Configure a PostgreSQL connection string before starting the app.")
 SCHEMA_PATH = (
-    (BASE_DIR / "backend" / ("schema.postgres.sql" if USE_POSTGRES else "schema.sql")).resolve()
+    (BASE_DIR / "backend" / "schema.postgres.sql").resolve()
     if (BASE_DIR / "backend").exists()
-    else (BASE_DIR / ("schema.postgres.sql" if USE_POSTGRES else "schema.sql")).resolve()
+    else (BASE_DIR / "schema.postgres.sql").resolve()
 )
 
 app = Flask(__name__)
@@ -299,18 +298,11 @@ def run_sql_script(connection, sql_script: str) -> None:
 def get_db():
     ensure_app_initialized()
     if "db" not in g:
-        if USE_POSTGRES:
-            if psycopg is None:
-                raise RuntimeError("psycopg is required when DATABASE_URL is configured.")
-            connection = psycopg.connect(DATABASE_URL, sslmode="require")
-            connection.autocommit = False
-            g.db = PgConnectionProxy(connection)
-        else:
-            connection = sqlite3.connect(DATABASE_PATH, timeout=30)
-            connection.row_factory = sqlite3.Row
-            connection.execute("PRAGMA busy_timeout = 30000")
-            connection.execute("PRAGMA foreign_keys = ON")
-            g.db = connection
+        if psycopg is None:
+            raise RuntimeError("psycopg is required for PostgreSQL connections.")
+        connection = psycopg.connect(DATABASE_URL, sslmode="require")
+        connection.autocommit = False
+        g.db = PgConnectionProxy(connection)
     return g.db
 
 
@@ -323,54 +315,24 @@ def close_db(_: BaseException | None) -> None:
 
 def init_db() -> None:
     def ensure_table_column(connection, table: str, column: str, definition: str) -> None:
-        if USE_POSTGRES:
-            columns = {
-                row["column_name"]
-                for row in connection.execute(
-                    """
-                    SELECT column_name
-                      FROM information_schema.columns
-                     WHERE table_schema = current_schema()
-                       AND table_name = %s
-                    """,
-                    (table,),
-                ).fetchall()
-            }
-            if column not in columns:
-                connection.execute(f"ALTER TABLE {table} ADD COLUMN {column} {definition}")
-            return
-
-        columns = {row[1] for row in connection.execute(f"PRAGMA table_info({table})").fetchall()}
+        columns = {
+            row["column_name"]
+            for row in connection.execute(
+                """
+                SELECT column_name
+                  FROM information_schema.columns
+                 WHERE table_schema = current_schema()
+                   AND table_name = %s
+                """,
+                (table,),
+            ).fetchall()
+        }
         if column not in columns:
             connection.execute(f"ALTER TABLE {table} ADD COLUMN {column} {definition}")
 
-    if USE_POSTGRES:
-        connection = psycopg.connect(DATABASE_URL, sslmode="require")
-        connection.autocommit = False
-        run_sql_script(connection, SCHEMA_PATH.read_text(encoding="utf-8"))
-        ensure_table_column(connection, "cash_payments", "source_type", "TEXT NOT NULL DEFAULT ''")
-        ensure_table_column(connection, "cash_payments", "source_ref_id", "INTEGER")
-        ensure_table_column(connection, "cash_payments", "source_note", "TEXT NOT NULL DEFAULT ''")
-        ensure_table_column(connection, "bank_payments", "source_type", "TEXT NOT NULL DEFAULT ''")
-        ensure_table_column(connection, "bank_payments", "source_ref_id", "INTEGER")
-        ensure_table_column(connection, "bank_payments", "source_note", "TEXT NOT NULL DEFAULT ''")
-        ensure_table_column(connection, "credit_card_reconciliation", "hst_cents", "INTEGER NOT NULL DEFAULT 0")
-        ensure_table_column(connection, "lcbo_monthly_workflows", "validated_amount", "REAL NOT NULL DEFAULT 0")
-        ensure_table_column(connection, "lcbo_monthly_workflows", "validated_at", "TEXT")
-        ensure_table_column(connection, "lcbo_monthly_workflows", "notes", "TEXT NOT NULL DEFAULT ''")
-        ensure_table_column(connection, "lcbo_monthly_workflows", "posted_at", "TEXT")
-        ensure_table_column(connection, "lcbo_monthly_workflows", "posted_resource", "TEXT")
-        ensure_table_column(connection, "lcbo_monthly_workflows", "posted_record_id", "INTEGER")
-        ensure_table_column(connection, "lcbo_monthly_workflows", "posted_payment_type", "TEXT")
-        connection.commit()
-        connection.close()
-        return
-
-    DATABASE_PATH.parent.mkdir(parents=True, exist_ok=True)
-    connection = sqlite3.connect(DATABASE_PATH, timeout=30)
-    connection.execute("PRAGMA busy_timeout = 30000")
-    connection.execute("PRAGMA foreign_keys = ON")
-    connection.executescript(SCHEMA_PATH.read_text(encoding="utf-8"))
+    connection = psycopg.connect(DATABASE_URL, sslmode="require")
+    connection.autocommit = False
+    run_sql_script(connection, SCHEMA_PATH.read_text(encoding="utf-8"))
     ensure_table_column(connection, "cash_payments", "source_type", "TEXT NOT NULL DEFAULT ''")
     ensure_table_column(connection, "cash_payments", "source_ref_id", "INTEGER")
     ensure_table_column(connection, "cash_payments", "source_note", "TEXT NOT NULL DEFAULT ''")
@@ -385,17 +347,6 @@ def init_db() -> None:
     ensure_table_column(connection, "lcbo_monthly_workflows", "posted_resource", "TEXT")
     ensure_table_column(connection, "lcbo_monthly_workflows", "posted_record_id", "INTEGER")
     ensure_table_column(connection, "lcbo_monthly_workflows", "posted_payment_type", "TEXT")
-
-    store_count = connection.execute("SELECT COUNT(*) FROM stores").fetchone()[0]
-    if store_count == 0:
-        for store_name in DEFAULT_STORE_NAMES:
-            connection.execute("INSERT INTO stores (name) VALUES (?)", (store_name,))
-    elif store_count < STORE_BUTTON_LIMIT:
-        for store_name in DEFAULT_STORE_NAMES:
-            exists = connection.execute("SELECT 1 FROM stores WHERE name = ? LIMIT 1", (store_name,)).fetchone()
-            if exists is None:
-                connection.execute("INSERT INTO stores (name) VALUES (?)", (store_name,))
-
     connection.commit()
     connection.close()
 
@@ -520,21 +471,15 @@ def require_fields(payload: dict[str, Any], fields: tuple[str, ...]) -> None:
 
 
 def month_filter_sql(date_col: str) -> str:
-    if USE_POSTGRES:
-        return f"substring({date_col}::text from 1 for 7)"
-    return f"substr({date_col}, 1, 7)"
+    return f"substring({date_col}::text from 1 for 7)"
 
 
 def year_filter_sql(date_col: str) -> str:
-    if USE_POSTGRES:
-        return f"EXTRACT(YEAR FROM {date_col}::date)"
-    return f"substr({date_col}, 1, 4)"
+    return f"EXTRACT(YEAR FROM {date_col}::date)"
 
 
 def month_numeric_sql(date_col: str) -> str:
-    if USE_POSTGRES:
-        return f"CAST(EXTRACT(MONTH FROM {date_col}::date) AS INTEGER)"
-    return f"CAST(substr({date_col}, 6, 2) AS INTEGER)"
+    return f"CAST(EXTRACT(MONTH FROM {date_col}::date) AS INTEGER)"
 
 
 def build_period_filters(

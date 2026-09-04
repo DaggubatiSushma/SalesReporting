@@ -5,14 +5,13 @@ Sales Reporting is a Flask-based web application for managing store-level sales,
 ## Tech stack
 
 - Python (Flask)
-- SQLite (local default) or PostgreSQL (production via `DATABASE_URL`)
+- PostgreSQL via `DATABASE_URL`
 - OpenPyXL for report exports
 
 ## Project structure
 
 - `main.py` - Flask app, API routes, DB initialization, and business logic
 - `frontend/` - Static frontend assets (HTML/CSS/JS)
-- `backend/schema.sql` - SQLite schema
 - `backend/schema.postgres.sql` - PostgreSQL schema
 - `wsgi.py` - WSGI entrypoint
 - `.env.example` - Environment variable template
@@ -29,8 +28,7 @@ MASTER_PASSWORD=change-me
 ```
 
 Notes:
-- If `DATABASE_URL` is set, app uses PostgreSQL.
-- If `DATABASE_URL` is missing/empty, app falls back to local SQLite (`sales_reporting.db`).
+- `DATABASE_URL` is required and the app uses PostgreSQL.
 
 ## Local development
 
@@ -49,7 +47,7 @@ Notes:
    ```bash
    pip install -r requirements.txt
    ```
-3. (Optional) create `.env` from `.env.example` and update values.
+3. Create `.env` from `.env.example` and update values.
 4. Run:
    ```bash
    python main.py
@@ -64,69 +62,6 @@ Notes:
 4. Run PostgreSQL schema in Supabase SQL Editor:
    - Copy/paste `backend/schema.postgres.sql`
    - Run query
-
-## Migrate existing SQLite data to PostgreSQL
-
-If you have data in `sales_reporting.db`, run a one-time migration.
-
-1. Ensure PostgreSQL schema already exists.
-2. Create `migrate_sqlite_to_supabase.py` in project root with:
-
-```python
-import sqlite3
-import psycopg
-
-SQLITE_PATH = "sales_reporting.db"
-PG_DSN = "postgresql://postgres:<PASSWORD>@db.your-project-ref.supabase.co:5432/postgres?sslmode=require"
-
-tables = [
-    "stores",
-    "daily_sales",
-    "lottery_records",
-    "cash_payments",
-    "bank_payments",
-    "expenses",
-    "salaries",
-    "other_income",
-    "lcbo_entries",
-    "credit_card_payments",
-    "credit_card_reconciliation",
-    "lcbo_monthly_workflows",
-    "lcbo_monthly_workflow_events",
-]
-
-sqlite_conn = sqlite3.connect(SQLITE_PATH)
-sqlite_conn.row_factory = sqlite3.Row
-
-pg = psycopg.connect(PG_DSN)
-pg.autocommit = False
-
-with pg.cursor() as cur:
-    for t in tables:
-        cur.execute(f'TRUNCATE TABLE "{t}" RESTART IDENTITY CASCADE;')
-
-    for t in tables:
-        rows = sqlite_conn.execute(f'SELECT * FROM "{t}"').fetchall()
-        if not rows:
-            continue
-        cols = rows[0].keys()
-        col_sql = ", ".join(f'"{c}"' for c in cols)
-        val_sql = ", ".join(["%s"] * len(cols))
-        insert_sql = f'INSERT INTO "{t}" ({col_sql}) VALUES ({val_sql})'
-        for row in rows:
-            cur.execute(insert_sql, [row[c] for c in cols])
-
-pg.commit()
-pg.close()
-sqlite_conn.close()
-
-print("Migration complete.")
-```
-
-3. Run:
-   ```bash
-   python migrate_sqlite_to_supabase.py
-   ```
 
 ## PythonAnywhere deployment
 
@@ -160,7 +95,6 @@ from main import app as application
 
 ## Verify active database
 
-- If app shows data while Supabase tables are empty, app is using SQLite fallback.
 - To verify Supabase usage, run in Supabase SQL Editor:
 
 ```sql
@@ -189,5 +123,4 @@ TRUNCATE TABLE
   stores
 RESTART IDENTITY CASCADE;
 ```
-
 

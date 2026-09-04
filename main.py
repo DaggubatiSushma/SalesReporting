@@ -33,10 +33,11 @@ except ImportError:  # pragma: no cover
 
 BASE_DIR = Path(__file__).resolve().parent
 FRONTEND_DIR = BASE_DIR / "frontend"
-load_dotenv(BASE_DIR / ".env")
-DATABASE_URL = os.environ.get("DATABASE_URL")
+DOTENV_PATH = BASE_DIR / ".env"
+load_dotenv(DOTENV_PATH)
+DATABASE_URL = (os.environ.get("DATABASE_URL") or "").strip()
 if not DATABASE_URL:
-    raise RuntimeError("DATABASE_URL is required. Configure a PostgreSQL connection string before starting the app.")
+    raise RuntimeError(f"DATABASE_URL is missing after loading {DOTENV_PATH}")
 SCHEMA_PATH = (
     (BASE_DIR / "backend" / "schema.postgres.sql").resolve()
     if (BASE_DIR / "backend").exists()

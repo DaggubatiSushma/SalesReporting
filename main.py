@@ -322,7 +322,7 @@ def close_db(_: BaseException | None) -> None:
 def init_db() -> None:
     def ensure_table_column(connection, table: str, column: str, definition: str) -> None:
         columns = {
-            row["column_name"]
+            row[0]
             for row in connection.execute(
                 """
                 SELECT column_name

@@ -18,7 +18,12 @@ from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils.exceptions import InvalidFileException
 from openpyxl.utils import get_column_letter
 from werkzeug.exceptions import HTTPException
-from dotenv import load_dotenv
+
+try:
+    from dotenv import load_dotenv
+except ImportError:  # pragma: no cover
+    def load_dotenv(*_args, **_kwargs):
+        return False
 
 try:
     import psycopg
